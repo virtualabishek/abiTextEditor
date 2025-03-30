@@ -3,25 +3,31 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
 // data
+// Global States
 
 struct editorConfig {
+	int screenrows;
+	int screencols;
 	struct termios orig_termios;
 };
 
 struct editorConfig E;
 // defines
 // for a control key, using hexa, cause it is more easy.
-#define CTRL_KEY(k) ((k) & 0x1f);
+// What the hell haha, define ko paxadi semicolon chaidaina raicha cause this is a macro and 
+// This wil be extra macro
+#define CTRL_KEY(k) ((k) & 0x1f)
 
 
 // terminal
 // For error handeling
 void die(const char *s) {
-	// for this next 2 line see below for what this does
+	// for this next 2 line see below for what this does kata re editorDraw vanda mathi ko comment
 	write(STDOUT_FILENO, "\x1b[2J", 4);
 	write(STDOUT_FILENO, "\x1b[H", 3);
 	perror(s);
@@ -72,6 +78,19 @@ char editorReadKey() {
 	}
 	return c;
 }
+// For widnow size, aba kati pata lagauna paryo
+// ioctl(), TIOCGWINSZ, and struct winsize come from <sys/ioctl.h>.
+// If sucess ioct1() replace wides, and rows., on fail return 01
+int getWindowSize(int *rows, int *cols) {
+	struct winsize ws;
+	if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+		return -1;
+	} else {
+		*cols = ws.ws_col;
+		*rows = ws.ws_row;
+		return 0;
+	}
+}
 
 // Output Section
 // 4 means, we are writing 4 bytes out to the terminal
@@ -101,11 +120,11 @@ void editorProcessKeyPress() {
 	char c = editorReadKey();
 	switch (c) {
 		case CTRL_KEY('q'):
-		write(STDOUT_FILENO, "\x1b[2J", 4);
-		write(STDOUT_FILENO, "\x1b[H", 3);
-		exit(0);
-		break;
-	}
+		  write(STDOUT_FILENO, "\x1b[2J", 4);
+		  write(STDOUT_FILENO, "\x1b[H", 3);
+		  exit(0);
+		  break;
+	  }
 }
 
 
