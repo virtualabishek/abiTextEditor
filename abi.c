@@ -35,11 +35,14 @@ void die(const char *s) {
 }
 
 
+
 // to save the setting or config
 void disableRawMode() {
 	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)
 		die("tcsetattr");
 }
+
+
 
 // not print the character
 void enableRawMode() {
@@ -78,13 +81,36 @@ char editorReadKey() {
 	}
 	return c;
 }
+
+// for the detail of the Cursor
+
+int getCursorPosition(int *rows, int *cols) {
+	if(write(STDOUT_FILENO, "\x1b[6n", 4) !=4) return -1;
+	print("\r\n");
+	char c;
+	while(read(STDIN_FILENO, &c, 1) ==1) {
+		if(iscntrl(c)) {
+			print("\r\n", c);
+		} else {
+			print("%d ('%c')\r\n",c, c);
+		}
+	}
+	editorReadKey();
+	return -1;
+
+}
+
+
 // For widnow size, aba kati pata lagauna paryo
 // ioctl(), TIOCGWINSZ, and struct winsize come from <sys/ioctl.h>.
 // If sucess ioct1() replace wides, and rows., on fail return 01
 int getWindowSize(int *rows, int *cols) {
 	struct winsize ws;
-	if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
-		return -1;
+
+	if(1 || ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+		if(write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12)!=12) return -1;
+		editorReadKey();
+		return getCursorPosition(rows, cols);
 	} else {
 		*cols = ws.ws_col;
 		*rows = ws.ws_row;
@@ -99,8 +125,8 @@ int getWindowSize(int *rows, int *cols) {
 // for a tildes sign 
 
 void editorDrawRows() {
-	int i;
-	for(i =0; i<24; i++) {
+	int y;
+	for(y =0; y<E.screenrows; y++) {
 		write(STDOUT_FILENO, "~\r\n", 3);
 	}
 }
@@ -127,13 +153,20 @@ void editorProcessKeyPress() {
 	  }
 }
 
+//init
+void initEditor(){
+	if(getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
+}
 
 // init or main func
 int main() {
 	enableRawMode();
+	initEditor();
 	while (1) { 
 		editorRefreshScreen();
 		editorProcessKeyPress();
 	}
 	return 0;
 }
+
+// At Step 32
